@@ -38,7 +38,7 @@
 4. **Do not touch**：明列不可碰的檔案 / 區域。
 5. **CODE QUALITY**：不可省。點名要共用的既有 helper；禁 `getattr` / `Any` / 吞錯 try-except / optional-everything props + 空值 guard / 假資料補值 / `"?"` 佔位；「貼超過 ~20 行就抽 helper」。
 6. **VERIFICATION**：worker 跑不了或不可靠時，寫明指揮者會跑哪些指令。
-7. **HARD RULES / GIT**：agy 不得 git 操作；ChatGPT 的 commit message、parent hash、禁 force push。
+7. **HARD RULES / GIT**：agy 不得 git 操作；ChatGPT 的 commit message、禁 force push / 開新 branch / 動 main。**parent 一律寫「你動手前 fetch 到的 branch HEAD」，不要寫死 hash**——指揮者常在 worker 跑的期間推自己的修正或文件 commit，寫死的 hash 會過期（2026-09-17 E10d-2a 撞到，worker 正確地拒絕覆蓋並改用當前 HEAD）。
 8. **FINAL REPORT**：固定五項（commit / 檔案 / 新簽名 / 測試名 / 契約疑點）。
 
 prompt 檔存 `C:\_work\AI_Work\Tools\agy-runs\<worker>-<phase>-<step>.prompt.txt`，session 中斷後可從這裡與實作紀錄接手。
@@ -126,6 +126,7 @@ if (btn && !btn.disabled) btn.click();
 
 - 使用者要求：**固定間隔（目前 15 分鐘）檢查一次，不要分鐘級輪詢**。session cron 可能不發火（idle 判定），用 `Monitor`（`sleep 900; echo tick` × 2，30 分鐘續一次）當主要喚醒訊號。
 - 每次檢查：`git fetch` 看 remote branch → 沒新 commit 就重載頁面看最後一則訊息與 stop button。
+- **「連線中斷。正在等待完整回覆」= 回合已死**（2026-09-17 確認）。不要等它恢復；直接 `navigate` 到同一個對話 URL（等同 F5），重載後若最後一則是自己的 user 訊息、沒有 assistant 回覆也沒有 stop button，就是死了，重送即可。
 - **stop button 會騙人**：backend 回合死了 UI 還顯示執行中。判斷規則：
   - 串流中且送出未滿 30 分鐘 → 不打擾（送訊息得先按 Stop，會丟掉未 commit 的工作）。
   - 超過 30 分鐘無輸出、或重載後回合已結束但沒 push → 送**不呼叫工具的診斷**：「不要呼叫任何工具，只回答：(1) 上回合做到哪 (2) 最後一次工具呼叫是什麼、有無被封鎖、錯誤訊息 (3) 手上有沒有已建好的 blob / tree」。它會秒回，答案決定下一步（被封鎖 → 換送法；時間切斷 → 叫它繼續）。
